@@ -1,0 +1,84 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Global Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() { return request.auth != null; }
+    function isOwner(userId) { return request.auth.uid == userId; }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+
+    // User Profile Validation
+    function isValidUser(data) {
+      return data.keys().hasAll(['email', 'createdAt'])
+        && data.email is string && data.email.size() <= 200
+        && (notHas(data, 'name') || (data.name is string && data.name.size() <= 100))
+        && (notHas(data, 'phone') || (data.phone is string && data.phone.size() <= 20));
+    }
+
+    // Complaint Validation
+    function isValidComplaint(data) {
+      return data.keys().hasAll(['userId', 'productName', 'sellerName', 'issueCategory', 'description', 'status', 'createdAt'])
+        && data.userId == request.auth.uid
+        && data.productName is string && data.productName.size() <= 200
+        && data.sellerName is string && data.sellerName.size() <= 200
+        && data.issueCategory is string && data.issueCategory.size() <= 50
+        && data.description is string && data.description.size() <= 2000
+        && data.status in ["Submitted", "Under Review", "Resolved", "Rejected"]
+        && (notHas(data, 'photoUrl') || (data.photoUrl is string && data.photoUrl.size() <= 500))
+        && data.createdAt == request.time;
+    }
+
+    // Scan Validation
+    function isValidScan(data) {
+      return data.keys().hasAll(['userId', 'productName', 'verdict', 'createdAt'])
+        && data.userId == request.auth.uid
+        && data.productName is string && data.productName.size() <= 200
+        && data.verdict in ["compliant", "non-compliant", "pending"]
+        && (notHas(data, 'photoUrl') || (data.photoUrl is string && data.photoUrl.size() <= 500))
+        && (notHas(data, 'detectedFields') || data.detectedFields is map)
+        && data.createdAt == request.time;
+    }
+    
+    // Helper for optional fields
+    function notHas(data, field) {
+      return !(field in data);
+    }
+
+    // Users Collection
+    match /users/{userId} {
+      allow get: if isSignedIn() && isOwner(userId) && isValidId(userId);
+      allow create: if isSignedIn() && isOwner(userId) && isValidId(userId) && isValidUser(incoming()) && incoming().createdAt == request.time;
+      allow update: if isSignedIn() && isOwner(userId) && isValidId(userId) && isValidUser(incoming())
+        && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'phone'])
+        && incoming().createdAt == existing().createdAt;
+    }
+
+    // Complaints Collection
+    match /complaints/{complaintId} {
+      allow get: if isSignedIn() && isOwner(existing().userId) && isValidId(complaintId);
+      allow list: if isSignedIn() && isOwner(resource.data.userId);
+      allow create: if isSignedIn() && isValidId(complaintId) && isValidComplaint(incoming());
+      // Users shouldn't be able to update their own complaints once submitted, 
+      // but if needed, we'd limit to specific fields
+      allow update: if false; 
+      allow delete: if false;
+    }
+
+    // Scans Collection
+    match /scans/{scanId} {
+      allow get: if isSignedIn() && isOwner(existing().userId) && isValidId(scanId);
+      allow list: if isSignedIn() && isOwner(resource.data.userId);
+      allow create: if isSignedIn() && isValidId(scanId) && isValidScan(incoming());
+      allow update: if false;
+      allow delete: if false;
+    }
+  }
+}

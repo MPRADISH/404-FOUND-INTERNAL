@@ -1,0 +1,60 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile information",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "maxLength": 100 },
+        "email": { "type": "string", "maxLength": 200 },
+        "phone": { "type": "string", "maxLength": 20 },
+        "createdAt": { "type": "timestamp" }
+      },
+      "required": ["email", "createdAt"]
+    },
+    "Complaint": {
+      "title": "Complaint",
+      "description": "A consumer complaint filed against a product",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "maxLength": 128 },
+        "productName": { "type": "string", "maxLength": 200 },
+        "sellerName": { "type": "string", "maxLength": 200 },
+        "issueCategory": { "type": "string", "maxLength": 50 },
+        "description": { "type": "string", "maxLength": 2000 },
+        "photoUrl": { "type": "string", "maxLength": 500 },
+        "status": { "type": "string", "enum": ["Submitted", "Under Review", "Resolved", "Rejected"] },
+        "createdAt": { "type": "timestamp" }
+      },
+      "required": ["userId", "productName", "sellerName", "issueCategory", "description", "status", "createdAt"]
+    },
+    "Scan": {
+      "title": "Scan",
+      "description": "A compliance scan performed by a user",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "maxLength": 128 },
+        "productName": { "type": "string", "maxLength": 200 },
+        "verdict": { "type": "string", "enum": ["compliant", "non-compliant", "pending"] },
+        "detectedFields": { "type": "map" },
+        "photoUrl": { "type": "string", "maxLength": 500 },
+        "createdAt": { "type": "timestamp" }
+      },
+      "required": ["userId", "productName", "verdict", "createdAt"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "complaints/{complaintId}": {
+      "schema": "Complaint",
+      "description": "Consumer complaints"
+    },
+    "scans/{scanId}": {
+      "schema": "Scan",
+      "description": "Product compliance scans"
+    }
+  }
+}

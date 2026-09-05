@@ -1,0 +1,6 @@
+{
+  "name": "Consumer Protection Portal",
+  "description": "Government consumer-protection portal landing page.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
